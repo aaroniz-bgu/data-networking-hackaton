@@ -1,22 +1,31 @@
 import socket
-
 from UDPServer import UDPServer
 
-# Test UDP server
-server = UDPServer(7777, 9999)
-server()
 
-client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-client.bind(('192.168.56.1', 7779))
-client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-client.settimeout(10)
-client.settimeout(2)  # Optional: 5 seconds timeout, can remove if you don't want a timeout
-print("Client listening on port 7779...")
-while True:
-    try:
-        # Receive data from the server (the broadcast)
-        data, address = client.recvfrom(1024)  # Buffer size: 1024 bytes
-        print(f"Received offer from {address}: {data}")
-    except socket.timeout:
-        print("No offers received within the timeout period.")
-        break
+def client_listener():
+    # Create a socket for UDP communication
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    # Bind the client to a specific port
+    client_socket.bind((IP, PORT))
+    print(f'{client_socket.getsockname()}')
+    while True:
+        # Receive data from the server
+        data, address = client_socket.recvfrom(1024)
+        if data:
+            print(f"Received packet from {address}")
+            print(f"Data: {data}")
+
+
+if __name__ == "__main__":
+    IP = str(input("Enter IP Address: "))
+    SUBNET = str(input("Enter Subnet: "))
+    PORT = int(input("Enter Port: "))
+
+    # Test UDP server
+    server = UDPServer(IP, 54321, 54322, SUBNET, PORT)
+    server()
+
+    # Test:
+    client_listener()

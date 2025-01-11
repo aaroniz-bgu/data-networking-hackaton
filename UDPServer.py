@@ -78,7 +78,7 @@ class UDPServer(AbstractServer):
         Runs on the IO Thread
         The main server loop.
         """
-        self.server_socket.bind((self.port, self.port))
+        self.server_socket.bind((self.ip, self.port))
 
         while self.running:
             # Get packets
