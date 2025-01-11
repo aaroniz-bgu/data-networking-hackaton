@@ -1,18 +1,28 @@
 from constants import COOKIE, OFFER_MSG, REQUEST_MSG, RESPONSE_MSG
 from AbstractServer import AbstractServer
+import ipaddress
 import threading
 import socket
 import struct
 import time
 
-BROADCAST_IP = '255.255.255.255'
+
+def get_broadcast_ip(ip, subnet_mask):
+    """
+    To have a nice method to get the broadcast ip
+    """
+    network = ipaddress.IPv4Network(f"{ip}/{subnet_mask}", strict=False)
+    return str(network.broadcast_address)
 
 
 class UDPServer(AbstractServer):
-    def __init__(self, port, tcp_port):
-        # Ip, ports. (the tcp port is here for the offer packet)
+    def __init__(self, ip: str, port: int, tcp_port: int, subnet_mask: str, broadcast_port: int):
+        # Ips, ports. (the tcp port is here for the offer packet)
+        self.ip = ip
         self.port = port
         self.tcp_port = tcp_port
+        self.broadcast_port = broadcast_port
+        self.broadcast_ip = get_broadcast_ip(ip, subnet_mask)
 
         # Creating the socket
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -41,7 +51,7 @@ class UDPServer(AbstractServer):
         """
         offer_packet = struct.pack('!IBHH', COOKIE, OFFER_MSG, self.port, self.tcp_port)
         while self.running:
-            self.server_socket.sendto(offer_packet, (BROADCAST_IP, self.port))
+            self.server_socket.sendto(offer_packet, (self.broadcast_ip, self.broadcast_port))
             print('Sent offer message')
             time.sleep(1)
 
@@ -68,7 +78,7 @@ class UDPServer(AbstractServer):
         Runs on the IO Thread
         The main server loop.
         """
-        self.server_socket.bind(('', self.port))
+        self.server_socket.bind((self.port, self.port))
 
         while self.running:
             # Get packets
