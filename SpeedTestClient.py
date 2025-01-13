@@ -61,11 +61,21 @@ class SpeedTestClient(object):
         sock.connect((address, host_port))
         sock.send(bytes(f'{self.file_size}\n', "utf-8"))
         # Wait for response:
-        data, _ = sock.recvfrom(BUFFER_SIZE)
+        data = sock.recv(BUFFER_SIZE)
         data = data.decode("utf-8").strip()
         # Sanity check:
         if len(data) != self.file_size:
             print(f'The file received in {threading.current_thread().name} was smaller than requested')
 
     def handle_udp(self, address, port, init_port):
+        for i in range(self.available_udp_connections):
+            thread = threading.Thread(
+                target=self.udp_conn,
+                name=f'udp_conn{i}',
+                args=(address, port, init_port + i)
+            )
+            thread.start()
+            self.threads.append(thread)
+
+    def udp_conn(self, address, port, sock_port):
         pass
