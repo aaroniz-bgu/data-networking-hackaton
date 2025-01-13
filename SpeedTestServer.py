@@ -1,3 +1,5 @@
+import time
+
 from AbstractServer import AbstractServer
 from TCPServer import TCPServer
 from UDPServer import UDPServer
@@ -54,6 +56,7 @@ class SpeedTestServer(AbstractServer):
     def stop(self):
         self.udp_server.stop()
         self.tcp_server.stop()
+        print("Server stopped.")
         # We're not resetting self.started since this is a one-time use object
 
 
@@ -66,8 +69,11 @@ if __name__ == '__main__':
     _tcp_workers = int(input("How many TCP workers to use to handle clients?: "))
 
     server = SpeedTestServer(_ip, _udp_port, _tcp_port, _mask, _broadcast_port, _tcp_workers)
-
+    # server = SpeedTestServer('172.20.10.11', 7777,7778,'255.255.255.240', 7779)
     state = PENDING
+    # server()
+    # time.sleep(5)
+    # server.stop()
 
     while state != STOPPED:
         if state == PENDING and input("Do you want to start server? (Y/N): ").lower() == 'y':
