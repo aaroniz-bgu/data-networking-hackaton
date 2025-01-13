@@ -1,16 +1,24 @@
 from constants import COOKIE, BUFFER_SIZE, RESPONSE_MSG
 from AbstractServer import AbstractServer
+from concurrent import futures
 import threading
 import socket
 import struct
 
 
 class TCPServer(AbstractServer):
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, max_workers: int = 1):
+        """
+        :param host: server ip
+        :param port: server port
+        :param max_workers: the number of workers, defaults to 1. The number of threads created by this server will be
+        at most max_workers + 1.
+        """
         self.host = host  # IP address of the server
         self.port = port  # Port number for the TCP server
         self.server_socket = None
-        self.server_thread = threading.Thread(target=self.server, name="tcp_thread")
+        self.server_thread = threading.Thread(target=self.serve, name="tcp_thread")
+        self.executor = futures.ThreadPoolExecutor(max_workers=max_workers)
         self.running = False
         self.threads = []
 
@@ -33,9 +41,8 @@ class TCPServer(AbstractServer):
                 print(f"Connection received from {client_address}")
 
                 # Start a new thread to handle the client
-                client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
-                self.threads.append(client_thread)
-                client_thread.start()
+                self.executor.submit(self.handle_client, client_socket, client_address)
+
             except Exception as e:
                 if not self.running:
                     break  # Exit loop if the server is stopping
