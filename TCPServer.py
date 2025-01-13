@@ -1,9 +1,8 @@
-from constants import COOKIE, BUFFER_SIZE, RESPONSE_MSG
 from AbstractServer import AbstractServer
+from constants import BUFFER_SIZE
 from concurrent import futures
 import threading
 import socket
-import struct
 
 
 class TCPServer(AbstractServer):
@@ -31,7 +30,7 @@ class TCPServer(AbstractServer):
         self.server_socket.listen(5)
         self.running = True
         self.server_thread.start()
-        print(f"Server started, listening on IP address {self.host}")
+        print(f"TCP Channel: started, listening on IP address {self.host}")
 
     def serve(self):
         """Main loop for accepting client connections."""
@@ -40,7 +39,7 @@ class TCPServer(AbstractServer):
             try:
                 # Accept a client connection
                 client_socket, client_address = self.server_socket.accept()
-                print(f"Connection received from {client_address}")
+                print(f"TCP Channel: connection received from {client_address}")
 
                 # Start a new thread to handle the client
                 self.executor.submit(self.handle_client, client_socket, client_address)
@@ -48,10 +47,9 @@ class TCPServer(AbstractServer):
             except Exception as e:
                 if not self.running:
                     break  # Exit loop if the server is stopping
-                print(f"Error accepting connection: {e}")
-
-        # After we're out the loop:
-        self.server_socket.close()
+                print(f"TCP Channel: error accepting connection: {e}")
+            finally:
+                self.stop()
 
     def handle_client(self, client_socket, client_address):
         """Handle a single client connection."""
@@ -59,7 +57,7 @@ class TCPServer(AbstractServer):
             # Receive request from the client
             data = client_socket.recv(BUFFER_SIZE).decode('utf-8').strip()
             if not data.isdigit() or int(data) <= 0:
-                print(f"Invalid file size received from {client_address}: {data}")
+                print(f"TCP Channel: invalid file size received from {client_address}: {data}")
                 client_socket.sendall(b"Invalid file size\n")
                 return
 
@@ -70,14 +68,18 @@ class TCPServer(AbstractServer):
             client_socket.send(file.encode('utf-8'))
 
         except Exception as e:
-            print(f"Error handling client: {e}")
+            print(f"TCP Channel: error handling client: {e}")
         finally:
             # Step 4: Close the connection
             client_socket.close()
-            print(f"Connection closed for {client_address}.")
+            print(f"TCP Channel: connection closed for {client_address}.")
 
     def stop(self):
         """Stop the server."""
+        if not self.running:
+            return
+
         self.running = False
+        if self.server_socket:
+            self.server_socket.close()
         self.executor.shutdown()
-        print("Server stopped.")
