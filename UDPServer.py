@@ -1,4 +1,4 @@
-from constants import COOKIE, OFFER_MSG, REQUEST_MSG, RESPONSE_MSG
+from constants import COOKIE, OFFER_MSG, REQUEST_MSG, RESPONSE_MSG, BUFFER_SIZE
 from AbstractServer import AbstractServer
 import ipaddress
 import threading
@@ -68,7 +68,8 @@ class UDPServer(AbstractServer):
 
         file_size = data[2]
         # each payload packet had 13 bytes for the protocol
-        segments = file_size // 1011 + 1
+        limit = BUFFER_SIZE - 13 + 1
+        segments = file_size // limit
         for i in range(segments):
             payload = struct.pack('!IBQQ', COOKIE, RESPONSE_MSG, segments - 1, i) + b"A" * 1011
             self.server_socket.sendto(payload, address)
@@ -82,7 +83,7 @@ class UDPServer(AbstractServer):
 
         while self.running:
             # Get packets
-            data, address = self.server_socket.recvfrom(1024)
+            data, address = self.server_socket.recvfrom(BUFFER_SIZE)
             self.handle(data, address)
 
         # When server is closed, close the socket:
