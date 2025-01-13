@@ -20,7 +20,9 @@ class TCPServer(AbstractServer):
         self.server_thread = threading.Thread(target=self.serve, name="tcp_thread")
         self.executor = futures.ThreadPoolExecutor(max_workers=max_workers)
         self.running = False
-        self.threads = []
+
+    def __call__(self, *args, **kwargs):
+        self.start()
 
     def start(self):
         """Initialize and start the server."""
