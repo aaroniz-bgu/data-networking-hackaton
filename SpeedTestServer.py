@@ -2,6 +2,10 @@ from AbstractServer import AbstractServer
 from TCPServer import TCPServer
 from UDPServer import UDPServer
 
+PENDING = 0
+RUNNING = 1
+STOPPED = 2
+
 
 class SpeedTestServer(AbstractServer):
     def __init__(self, ip: str, udp_port: int, tcp_port: int,
@@ -30,6 +34,9 @@ class SpeedTestServer(AbstractServer):
 
         self.started = False
 
+    def __call__(self, *args, **kwargs):
+        self.start()
+
     def start(self):
         if self.started:
             return
@@ -48,3 +55,24 @@ class SpeedTestServer(AbstractServer):
         self.udp_server.stop()
         self.tcp_server.stop()
         # We're not resetting self.started since this is a one-time use object
+
+
+if __name__ == '__main__':
+    _ip = input("Server IP address: ")
+    _udp_port = int(input("Server UDP port (must be unique and <=2^16): "))
+    _tcp_port = int(input("Server TCP port (must be unique and <=2^16): "))
+    _mask = input("Subnet mask for the broadcasting feature (Must): ")
+    _broadcast_port = int(input("Broadcast port (which will be used by listening clients): "))
+    _tcp_workers = int(input("How many TCP workers to use to handle clients?: "))
+
+    server = SpeedTestServer(_ip, _udp_port, _tcp_port, _mask, _broadcast_port, _tcp_workers)
+
+    state = PENDING
+
+    while state != STOPPED:
+        if state == PENDING and input("Do you want to start server? (Y/N): ").lower() == 'y':
+            server()
+            print("TYPE \'q\' to stop the server.")
+        elif state == RUNNING and input().lower() == 'q':
+            server.stop()
+            state = STOPPED
