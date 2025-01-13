@@ -39,10 +39,16 @@ class UDPServer(AbstractServer):
         """
         Stops the UDP server gracefully.
         """
+        if not self.running:
+            return
+
         self.running = False
+
+        if not self.running:
+            self.server_socket.close()
+
         self.offer_thread.join()
         self.clients_thread.join()
-        self.server_socket.close()
 
     # This function will run in its own thread.
     def send_offer(self):
@@ -81,13 +87,15 @@ class UDPServer(AbstractServer):
         """
         self.server_socket.bind((self.ip, self.port))
 
-        while self.running:
-            # Get packets
-            data, address = self.server_socket.recvfrom(BUFFER_SIZE)
-            self.handle(data, address)
-
-        # When server is closed, close the socket:
-        self.server_socket.close()
+        try:
+            while self.running:
+                # Get packets
+                data, address = self.server_socket.recvfrom(BUFFER_SIZE)
+                self.handle(data, address)
+        except Exception as e:
+            print(f'UDP Channel faced an error:\n{e}')
+        finally:
+            self.stop()
 
     def start(self):
         """
