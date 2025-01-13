@@ -1,24 +1,27 @@
-from constants import COOKIE, OFFER_MSG
 from AbstractServer import AbstractServer
+from constants import BUFFER_SIZE
+from concurrent import futures
 import threading
 import socket
-import struct
-import queue
-import time
-
-MAGIC_COOKIE = 0xabcddcba
-MESSAGE_TYPE = 0x4
-BUFFER_SIZE = 1024
 
 
 class TCPServer(AbstractServer):
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, max_workers: int = 1):
+        """
+        :param host: server ip
+        :param port: server port
+        :param max_workers: the number of workers, defaults to 1. The number of threads created by this server will be
+        at most max_workers + 1.
+        """
         self.host = host  # IP address of the server
         self.port = port  # Port number for the TCP server
         self.server_socket = None
-        self.server_thread = threading.Thread(target=self.server, name="tcp_thread")
+        self.server_thread = threading.Thread(target=self.serve, name="tcp_thread")
+        self.executor = futures.ThreadPoolExecutor(max_workers=max_workers)
         self.running = False
-        self.threads = []
+
+    def __call__(self, *args, **kwargs):
+        self.start()
 
     def start(self):
         """Initialize and start the server."""
@@ -27,7 +30,7 @@ class TCPServer(AbstractServer):
         self.server_socket.listen(5)
         self.running = True
         self.server_thread.start()
-        print(f"Server started, listening on IP address {self.host}")
+        print(f"TCP Channel: started, listening on IP address {self.host}")
 
     def serve(self):
         """Main loop for accepting client connections."""
@@ -36,61 +39,47 @@ class TCPServer(AbstractServer):
             try:
                 # Accept a client connection
                 client_socket, client_address = self.server_socket.accept()
-                print(f"Connection received from {client_address}")
+                print(f"TCP Channel: connection received from {client_address}")
 
                 # Start a new thread to handle the client
-                client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
-                self.threads.append(client_thread)
-                client_thread.start()
+                self.executor.submit(self.handle_client, client_socket, client_address)
+
             except Exception as e:
                 if not self.running:
                     break  # Exit loop if the server is stopping
-                print(f"Error accepting connection: {e}")
-
-        # After we're out the loop:
-        self.server_socket.close()
+                print(f"TCP Channel: error accepting connection: {e}")
+            finally:
+                self.stop()
 
     def handle_client(self, client_socket, client_address):
         """Handle a single client connection."""
         try:
+            # Receive request from the client
             data = client_socket.recv(BUFFER_SIZE).decode('utf-8').strip()
             if not data.isdigit() or int(data) <= 0:
-                print(f"Invalid file size received from {client_address}: {data}")
+                print(f"TCP Channel: invalid file size received from {client_address}: {data}")
                 client_socket.sendall(b"Invalid file size\n")
                 return
 
+            # Compute the file
             file_size = int(data)
-            print(f"Client requested {file_size} bytes.")
+            file = "A" * file_size
+            # Send to client
+            client_socket.send(file.encode('utf-8'))
 
-            # Step 2: Send acknowledgment
-            client_socket.sendall(b"File size received\n")
-
-            # Step 3: Process the request
-            bytes_sent = 0
-            segment_count = 0
-            total_segments = (file_size + BUFFER_SIZE - 1) // BUFFER_SIZE  # Calculate total segments
-
-            while self.running and bytes_sent < file_size:
-                payload_size = min(BUFFER_SIZE, file_size - bytes_sent)
-
-                # Prepare the payload
-                payload = struct.pack('!I B Q Q', MAGIC_COOKIE, MESSAGE_TYPE, total_segments, segment_count)
-                payload += b'X' * payload_size  # Add dummy data
-
-                client_socket.sendall(payload)
-                bytes_sent += payload_size
-                segment_count += 1
-                print(f"Transfer to {client_address} complete. Sent {bytes_sent} bytes.")
         except Exception as e:
-            print(f"Error handling client: {e}")
+            print(f"TCP Channel: error handling client: {e}")
         finally:
             # Step 4: Close the connection
             client_socket.close()
-            print(f"Connection closed for {client_address}.")
+            print(f"TCP Channel: connection closed for {client_address}.")
 
     def stop(self):
         """Stop the server."""
+        if not self.running:
+            return
+
         self.running = False
-        for thread in self.threads:
-            thread.join()
-        print("Server stopped.")
+        if self.server_socket:
+            self.server_socket.close()
+        self.executor.shutdown()
