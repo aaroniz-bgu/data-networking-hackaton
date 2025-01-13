@@ -1,4 +1,4 @@
-from constants import COOKIE, OFFER_MSG, REQUEST_MSG, RESPONSE_MSG
+from constants import COOKIE, OFFER_MSG, REQUEST_MSG, RESPONSE_MSG, BUFFER_SIZE
 from AbstractServer import AbstractServer
 import ipaddress
 import threading
@@ -39,10 +39,16 @@ class UDPServer(AbstractServer):
         """
         Stops the UDP server gracefully.
         """
+        if not self.running:
+            return
+
         self.running = False
+
+        if not self.running:
+            self.server_socket.close()
+
         self.offer_thread.join()
         self.clients_thread.join()
-        self.server_socket.close()
 
     # This function will run in its own thread.
     def send_offer(self):
@@ -68,7 +74,8 @@ class UDPServer(AbstractServer):
 
         file_size = data[2]
         # each payload packet had 13 bytes for the protocol
-        segments = file_size // 1011 + 1
+        limit = BUFFER_SIZE - 13 + 1
+        segments = file_size // limit
         for i in range(segments):
             payload = struct.pack('!IBQQ', COOKIE, RESPONSE_MSG, segments - 1, i) + b"A" * 1011
             self.server_socket.sendto(payload, address)
@@ -80,13 +87,15 @@ class UDPServer(AbstractServer):
         """
         self.server_socket.bind((self.ip, self.port))
 
-        while self.running:
-            # Get packets
-            data, address = self.server_socket.recvfrom(1024)
-            self.handle(data, address)
-
-        # When server is closed, close the socket:
-        self.server_socket.close()
+        try:
+            while self.running:
+                # Get packets
+                data, address = self.server_socket.recvfrom(BUFFER_SIZE)
+                self.handle(data, address)
+        except Exception as e:
+            print(f'UDP Channel faced an error:\n{e}')
+        finally:
+            self.stop()
 
     def start(self):
         """
