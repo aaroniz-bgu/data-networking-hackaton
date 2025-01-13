@@ -1,14 +1,8 @@
-from constants import COOKIE, OFFER_MSG
+from constants import COOKIE, BUFFER_SIZE, RESPONSE_MSG
 from AbstractServer import AbstractServer
 import threading
 import socket
 import struct
-import queue
-import time
-
-MAGIC_COOKIE = 0xabcddcba
-MESSAGE_TYPE = 0x4
-BUFFER_SIZE = 1024
 
 
 class TCPServer(AbstractServer):
@@ -74,7 +68,7 @@ class TCPServer(AbstractServer):
                 payload_size = min(BUFFER_SIZE, file_size - bytes_sent)
 
                 # Prepare the payload
-                payload = struct.pack('!I B Q Q', MAGIC_COOKIE, MESSAGE_TYPE, total_segments, segment_count)
+                payload = struct.pack('!I B Q Q', COOKIE, RESPONSE_MSG, total_segments, segment_count)
                 payload += b'X' * payload_size  # Add dummy data
 
                 client_socket.sendall(payload)
