@@ -56,34 +56,19 @@ class TCPServer(AbstractServer):
     def handle_client(self, client_socket, client_address):
         """Handle a single client connection."""
         try:
+            # Receive request from the client
             data = client_socket.recv(BUFFER_SIZE).decode('utf-8').strip()
             if not data.isdigit() or int(data) <= 0:
                 print(f"Invalid file size received from {client_address}: {data}")
                 client_socket.sendall(b"Invalid file size\n")
                 return
 
+            # Compute the file
             file_size = int(data)
-            print(f"Client requested {file_size} bytes.")
+            file = "A" * file_size
+            # Send to client
+            client_socket.send(file.encode('utf-8'))
 
-            # Step 2: Send acknowledgment
-            client_socket.sendall(b"File size received\n")
-
-            # Step 3: Process the request
-            bytes_sent = 0
-            segment_count = 0
-            total_segments = (file_size + BUFFER_SIZE - 1) // BUFFER_SIZE  # Calculate total segments
-
-            while self.running and bytes_sent < file_size:
-                payload_size = min(BUFFER_SIZE, file_size - bytes_sent)
-
-                # Prepare the payload
-                payload = struct.pack('!I B Q Q', COOKIE, RESPONSE_MSG, total_segments, segment_count)
-                payload += b'X' * payload_size  # Add dummy data
-
-                client_socket.sendall(payload)
-                bytes_sent += payload_size
-                segment_count += 1
-                print(f"Transfer to {client_address} complete. Sent {bytes_sent} bytes.")
         except Exception as e:
             print(f"Error handling client: {e}")
         finally:
@@ -94,6 +79,5 @@ class TCPServer(AbstractServer):
     def stop(self):
         """Stop the server."""
         self.running = False
-        for thread in self.threads:
-            thread.join()
+        self.executor.shutdown()
         print("Server stopped.")
