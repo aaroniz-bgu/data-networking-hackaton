@@ -10,11 +10,13 @@ MAGIC_COOKIE = 0xabcddcba
 MESSAGE_TYPE = 0x4
 BUFFER_SIZE = 1024
 
+
 class TCPServer(AbstractServer):
     def __init__(self, host: str, port: int):
         self.host = host  # IP address of the server
         self.port = port  # Port number for the TCP server
         self.server_socket = None
+        self.server_thread = threading.Thread(target=self.server, name="tcp_thread")
         self.running = False
         self.threads = []
 
@@ -24,6 +26,7 @@ class TCPServer(AbstractServer):
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen(5)
         self.running = True
+        self.server_thread.start()
         print(f"Server started, listening on IP address {self.host}")
 
     def serve(self):
@@ -36,7 +39,7 @@ class TCPServer(AbstractServer):
                 print(f"Connection received from {client_address}")
 
                 # Start a new thread to handle the client
-                client_thread = threading.Thread(target=TCPServer.handle_client, args=(client_socket,))
+                client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
                 self.threads.append(client_thread)
                 client_thread.start()
             except Exception as e:
@@ -44,8 +47,10 @@ class TCPServer(AbstractServer):
                     break  # Exit loop if the server is stopping
                 print(f"Error accepting connection: {e}")
 
-    @staticmethod
-    def handle_client(client_socket, client_address):
+        # After we're out the loop:
+        self.server_socket.close()
+
+    def handle_client(self, client_socket, client_address):
         """Handle a single client connection."""
         try:
             data = client_socket.recv(BUFFER_SIZE).decode('utf-8').strip()
@@ -65,7 +70,7 @@ class TCPServer(AbstractServer):
             segment_count = 0
             total_segments = (file_size + BUFFER_SIZE - 1) // BUFFER_SIZE  # Calculate total segments
 
-            while bytes_sent < file_size:
+            while self.running and bytes_sent < file_size:
                 payload_size = min(BUFFER_SIZE, file_size - bytes_sent)
 
                 # Prepare the payload
@@ -86,8 +91,6 @@ class TCPServer(AbstractServer):
     def stop(self):
         """Stop the server."""
         self.running = False
-        if self.server_socket:
-            self.server_socket.close()
         for thread in self.threads:
             thread.join()
         print("Server stopped.")
