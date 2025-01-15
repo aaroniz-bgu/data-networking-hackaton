@@ -16,6 +16,10 @@ class SpeedTestClient(object):
         self.initial_port = initial_port
         return
 
+    def __call__(self, *args, **kwargs):
+        self.initial_port += 1
+        self.search_offers(self.initial_port - 1)
+
     def search_offers(self, listen_port: int):
         """Listen for UDP broadcast offers and parse them."""
         try:
@@ -140,3 +144,14 @@ class SpeedTestClient(object):
 
         print(f'UDP transfer #{con_num} finished, total time: {elapsed} seconds, '
               f'total speed: {speed} bps, percentage of packets received successfully: {percentage}%')
+
+
+if __name__ == '__main__':
+    tcp_conns = int(input('How many TCP Connections would you like have?: '))
+    udp_conns = int(input('How many UDP Connections would you like have?: '))
+    init_port = int(input('The initial port which will be given to each connection in sequence: '))
+    file_size = int(input('What is the file size you\'d like to receive?: '))
+
+    print('Starting client...')
+    client = SpeedTestClient(tcp_conns, udp_conns, file_size, init_port)
+    client()
