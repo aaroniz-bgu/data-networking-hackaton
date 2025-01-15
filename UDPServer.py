@@ -75,7 +75,7 @@ class UDPServer(AbstractServer):
         file_size = data[2]
         # each payload packet had 13 bytes for the protocol
         limit = BUFFER_SIZE - 13 + 1
-        segments = file_size // limit
+        segments = file_size // limit + 1
         for i in range(segments):
             payload = struct.pack('!IBQQ', COOKIE, RESPONSE_MSG, segments - 1, i) + b"A" * 1011
             self.server_socket.sendto(payload, address)
@@ -91,7 +91,7 @@ class UDPServer(AbstractServer):
             while self.running:
                 # Get packets
                 data, address = self.server_socket.recvfrom(BUFFER_SIZE)
-                print(f'Got UDP request from: {address[0]}:{address[1]}')
+                print(f'UDP Channel: connection received from {address}')
                 self.handle(data, address)
         except Exception as e:
             print(f'UDP Channel faced an error:\n{e}')
