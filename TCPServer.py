@@ -1,12 +1,11 @@
 from AbstractServer import AbstractServer
 from constants import BUFFER_SIZE
-from concurrent import futures
 import threading
 import socket
 
 
 class TCPServer(AbstractServer):
-    def __init__(self, host: str, port: int, max_workers: int = 1):
+    def __init__(self, host: str, port: int, executor):
         """
         :param host: server ip
         :param port: server port
@@ -17,7 +16,7 @@ class TCPServer(AbstractServer):
         self.port = port  # Port number for the TCP server
         self.server_socket = None
         self.server_thread = threading.Thread(target=self.serve, name="tcp_thread")
-        self.executor = futures.ThreadPoolExecutor(max_workers=max_workers)
+        self.executor = executor
         self.running = False
 
     def __call__(self, *args, **kwargs):
@@ -39,7 +38,6 @@ class TCPServer(AbstractServer):
             try:
                 # Accept a client connection
                 client_socket, client_address = self.server_socket.accept()
-                print(f"TCP Channel: connection received from {client_address}")
 
                 # Start a new thread to handle the client
                 self.executor.submit(self.handle_client, client_socket, client_address)

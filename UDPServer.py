@@ -16,7 +16,7 @@ def get_broadcast_ip(ip, subnet_mask):
 
 
 class UDPServer(AbstractServer):
-    def __init__(self, ip: str, port: int, tcp_port: int, subnet_mask: str, broadcast_port: int):
+    def __init__(self, ip: str, port: int, tcp_port: int, subnet_mask: str, broadcast_port: int, executor):
         # Ips, ports. (the tcp port is here for the offer packet)
         self.ip = ip
         self.port = port
@@ -30,6 +30,7 @@ class UDPServer(AbstractServer):
         # Multithreading & it's utils
         self.clients_thread = threading.Thread(target=self.serve, name='clients_thread')
         self.offer_thread = threading.Thread(target=self.send_offer, name='offer_thread')
+        self.executor = executor
         self.running = False
 
     def __call__(self, *args, **kwargs):
@@ -92,7 +93,7 @@ class UDPServer(AbstractServer):
                 # Get packets
                 data, address = self.server_socket.recvfrom(BUFFER_SIZE)
                 print(f'UDP Channel: connection received from {address}')
-                self.handle(data, address)
+                self.executor.submit(self.handle, data, address)
         except Exception as e:
             print(f'UDP Channel faced an error:\n{e}')
         finally:

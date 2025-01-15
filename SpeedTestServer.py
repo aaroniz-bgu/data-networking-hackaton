@@ -3,6 +3,7 @@ import time
 from AbstractServer import AbstractServer
 from TCPServer import TCPServer
 from UDPServer import UDPServer
+from concurrent import futures
 
 PENDING = 0
 RUNNING = 1
@@ -11,7 +12,7 @@ STOPPED = 2
 
 class SpeedTestServer(AbstractServer):
     def __init__(self, ip: str, udp_port: int, tcp_port: int,
-                 mask: str, broadcast_port: int, tcp_workers: int = 4):
+                 mask: str, broadcast_port: int, workers: int = 4):
         """
         The API to work with the speed test server.
 
@@ -30,9 +31,10 @@ class SpeedTestServer(AbstractServer):
         self._ip = ip
         self._udp_port = udp_port
         self._tcp_port = tcp_port
+        self.executor = futures.ThreadPoolExecutor(max_workers=workers)
 
-        self.udp_server = UDPServer(ip, udp_port, tcp_port, mask, broadcast_port)
-        self.tcp_server = TCPServer(ip, tcp_port, tcp_workers)
+        self.udp_server = UDPServer(ip, udp_port, tcp_port, mask, broadcast_port, self.executor)
+        self.tcp_server = TCPServer(ip, tcp_port, self.executor)
 
         self.started = False
 
@@ -66,9 +68,9 @@ if __name__ == '__main__':
     _tcp_port = int(input("Server TCP port (must be unique and <=2^16): "))
     _mask = input("Subnet mask for the broadcasting feature (Must): ")
     _broadcast_port = int(input("Broadcast port (which will be used by listening clients): "))
-    _tcp_workers = int(input("How many TCP workers to use to handle clients?: "))
+    _workers = int(input("How many workers to use to handle clients for each channel?: "))
 
-    server = SpeedTestServer(_ip, _udp_port, _tcp_port, _mask, _broadcast_port, _tcp_workers)
+    server = SpeedTestServer(_ip, _udp_port, _tcp_port, _mask, _broadcast_port, _workers)
     # server = SpeedTestServer('172.20.10.11', 7777,7778,'255.255.255.240', 7779)
     state = PENDING
     # server()
