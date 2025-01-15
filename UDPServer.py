@@ -91,6 +91,7 @@ class UDPServer(AbstractServer):
             while self.running:
                 # Get packets
                 data, address = self.server_socket.recvfrom(BUFFER_SIZE)
+                print(f'Got UDP request from: {address[0]}:{address[1]}')
                 self.handle(data, address)
         except Exception as e:
             print(f'UDP Channel faced an error:\n{e}')
