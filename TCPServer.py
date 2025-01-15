@@ -48,10 +48,9 @@ class TCPServer(AbstractServer):
                 if not self.running:
                     break  # Exit loop if the server is stopping
                 print(f"TCP Channel: error accepting connection: {e}")
-            finally:
-                self.stop()
 
     def handle_client(self, client_socket, client_address):
+        print(f"TCP Channel: connection received from {client_address}")
         """Handle a single client connection."""
         try:
             # Receive request from the client
@@ -65,7 +64,7 @@ class TCPServer(AbstractServer):
             file_size = int(data)
             file = "A" * file_size
             # Send to client
-            client_socket.send(file.encode('utf-8'))
+            client_socket.sendall(file.encode('utf-8'))
 
         except Exception as e:
             print(f"TCP Channel: error handling client: {e}")
@@ -82,4 +81,4 @@ class TCPServer(AbstractServer):
         self.running = False
         if self.server_socket:
             self.server_socket.close()
-        self.executor.shutdown()
+        self.executor.shutdown(wait=True)
