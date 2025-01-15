@@ -69,7 +69,7 @@ class SpeedTestClient(object):
         sock.bind(('', sock_port))
 
         # Connect and send request to host:
-        sock.connect((address, host_port))
+        sock.connect(address)
         sock.send(bytes(f'{self.file_size}\n', "utf-8"))
 
         # Count time:
@@ -138,9 +138,11 @@ class SpeedTestClient(object):
             if smax == data[3]:
                 break
 
+        if smax == 0:
+            smax = float('inf')
         elapsed = time.perf_counter() - start_time
         speed = (float(recv) * float(self.file_size) / smax) / elapsed
-        percentage = float(recv) / smax if smax != 0 else float('inf')
+        percentage = float(recv) / smax
 
         print(f'UDP transfer #{con_num} finished, total time: {elapsed} seconds, '
               f'total speed: {speed} bps, percentage of packets received successfully: {percentage}%')
