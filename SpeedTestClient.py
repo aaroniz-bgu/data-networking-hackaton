@@ -1,6 +1,8 @@
+import threading
 import socket
 import struct
-import threading
+import time
+
 from constants import *
 
 
@@ -39,6 +41,7 @@ class SpeedTestClient(object):
                 for thread in self.threads:
                     thread.join()
                 # Continue...
+                print('All transfers complete, listening to offer requests')
 
         except Exception as e:
             print(f"Failed while searching for offers: \n{e}")
@@ -54,15 +57,30 @@ class SpeedTestClient(object):
             self.threads.append(thread)
 
     def tcp_conn(self, address, host_port, sock_port):
+        # Helper variables
+        con_num = sock_port - self.initial_port + 1
+
         # Create the socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.bind(('', sock_port))
+
         # Connect and send request to host:
         sock.connect((address, host_port))
         sock.send(bytes(f'{self.file_size}\n', "utf-8"))
+
+        # Count time:
+        start_time = time.perf_counter()
+
         # Wait for response:
-        data = sock.recv(BUFFER_SIZE)
+        buf_size = max(self.file_size, BUFFER_SIZE)
+        data = sock.recv(buf_size)
         data = data.decode("utf-8").strip()
+
+        # print statistics:
+        total_time = float(time.perf_counter() - start_time)
+        speed = float(self.file_size) / total_time
+        print(f'TCP Connection #{con_num} finished, total time: {total_time} seconds, total speed: {speed} bps')
+
         # Sanity check:
         if len(data) != self.file_size:
             print(f'The file received in {threading.current_thread().name} was smaller than requested')
@@ -78,4 +96,47 @@ class SpeedTestClient(object):
             self.threads.append(thread)
 
     def udp_conn(self, address, port, sock_port):
-        pass
+        # Helper variables
+        con_num = sock_port - self.initial_port - self.available_tcp_connections + 1
+        recv = 0
+        smax = 0
+
+        # Sending the request
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client_socket.bind(('', sock_port))
+        request = struct.pack('!IBQ', COOKIE, REQUEST_MSG, self.file_size)
+        client_socket.sendto(request, address)
+        client_socket.settimeout(BUFFER_SIZE // 200)  # for buff size 1024 we wait max of 5 seconds
+
+        # Count the number of segments received, max number of segments possible and the time we started
+        start_time = time.perf_counter()
+
+        # Start listening:
+        while True:
+            # Listen for incoming requests:
+            try:
+                data, _ = client_socket.recv(BUFFER_SIZE)
+            except socket.timeout:
+                # if timeout had been reached
+                break
+
+            # Unpack data:
+            data = struct.unpack('!IBQQ', data)
+
+            if data[0] != COOKIE or data[1] != RESPONSE_MSG:
+                continue  # not a valid message
+
+            # Update the smax
+            if smax == 0:
+                smax = float(data[2])
+            recv += 1
+
+            if smax == data[3]:
+                break
+
+        elapsed = time.perf_counter() - start_time
+        speed = (float(recv) * float(self.file_size) / smax) / elapsed
+        percentage = float(recv) / smax if smax != 0 else float('inf')
+
+        print(f'UDP transfer #{con_num} finished, total time: {elapsed} seconds, '
+              f'total speed: {speed} bps, percentage of packets received successfully: {percentage}%')
