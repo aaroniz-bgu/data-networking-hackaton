@@ -69,7 +69,8 @@ class SpeedTestClient(object):
         sock.bind(('', sock_port))
 
         # Connect and send request to host:
-        sock.connect(address)
+        connect_address = (address[0], host_port)
+        sock.connect(connect_address)
         sock.send(bytes(f'{self.file_size}\n', "utf-8"))
 
         # Count time:
@@ -83,7 +84,8 @@ class SpeedTestClient(object):
         # print statistics:
         total_time = float(time.perf_counter() - start_time)
         speed = float(self.file_size) / total_time
-        print(f'TCP Connection #{con_num} finished, total time: {total_time} seconds, total speed: {speed} bps')
+        print(f'TCP Connection #{con_num: .4f} finished, total time: {total_time: .4f}, '
+              f'seconds, total speed: {speed: .4f} bps')
 
         # Sanity check:
         if len(data) != self.file_size:
@@ -144,8 +146,8 @@ class SpeedTestClient(object):
         speed = (float(recv) * float(self.file_size) / smax) / elapsed
         percentage = float(recv) / smax
 
-        print(f'UDP transfer #{con_num} finished, total time: {elapsed} seconds, '
-              f'total speed: {speed} bps, percentage of packets received successfully: {percentage}%')
+        print(f'UDP transfer #{con_num: .4f} finished, total time: {elapsed: .4f} seconds, '
+              f'total speed: {speed: .4f} bps, percentage of packets received successfully: {percentage: .4f}%')
 
 
 if __name__ == '__main__':
